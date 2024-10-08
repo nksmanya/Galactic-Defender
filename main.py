@@ -289,6 +289,40 @@ def level_1():
     return True
 
 def level_2():
+    global level_value, score_value, max_asteroid_speed
+    current_time = pygame.time.get_ticks()
+    time_elapsed = current_time - level2_start_time
+
+    if time_elapsed < level2_duration:
+        for i in range(num_of_asteroids):
+            asteroidY[i] += asteroidY_change[i]
+
+            if asteroidY[i] > screen_height:
+                asteroidX[i] = random.randint(0, screen_width - 64)
+                asteroidY[i] = random.randint(-500, -50)
+                asteroidY_change[i] = random.uniform(min_asteroid_speed, max_asteroid_speed)
+                near_miss_recorded[i] = False
+
+            if is_asteroid_collision(asteroidX[i], asteroidY[i], playerX, playerY):
+                game_over_text()
+                return False
+
+            if not near_miss_recorded[i] and is_near_miss(asteroidX[i], asteroidY[i], playerX, playerY):
+                score_value += 1
+                near_miss_recorded[i] = True
+
+            asteroid(asteroidX[i], asteroidY[i], i)
+
+        if time_elapsed % 5000 == 0:
+            max_asteroid_speed += 0.5
+            for i in range(num_of_asteroids):
+                asteroidY_change[i] = random.uniform(min_asteroid_speed, max_asteroid_speed)
+    else:
+        level_value = 3
+        reset_asteroids()
+    return True
+
+def level_3():
     global score_value, level_value, bullet_state, bulletY, max_asteroid_speed
 
     # Update and display each enemy
@@ -348,33 +382,6 @@ def level_2():
     if score_value >= 20:
         level_value = 3
         reset_asteroids()  # Reset asteroids for the next level
-
-    return True
-
-def level_3():
-    global score_value, level_value, planets_visited, playerY, planet_angles, playerX, player_angle
-    all_planets_visited = True
-    for i in range(num_of_planets):
-        if not planets_visited[i]:
-            planet_angles[i] += planet_rotation_speed
-            if planet_angles[i] >= 360:
-                planet_angles[i] = 0
-
-            planet(planetX[i], planetY[i], i, planet_angles[i])
-
-            if is_collision(planetX[i], planetY[i], playerX, playerY):
-                score_value += 3
-                planets_visited[i] = True
-                landingSound = mixer.Sound("landing.mp3")
-                landingSound.play()
-                playerY = planetY[i] - 64
-                player_angle = planet_angles[i]  # Make spaceship rotate with the planet
-
-            all_planets_visited = False
-
-    if all_planets_visited:
-        level_value = 4
-        planets_visited = [False] * num_of_planets
 
     return True
 
