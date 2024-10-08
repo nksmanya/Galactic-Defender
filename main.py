@@ -351,7 +351,6 @@ def level_2():
 
     return True
 
-
 def level_3():
     global score_value, level_value, planets_visited, playerY, planet_angles, playerX, player_angle
     all_planets_visited = True
@@ -378,6 +377,7 @@ def level_3():
         planets_visited = [False] * num_of_planets
 
     return True
+
 
 def main_game_loop():
     global playerX, playerY, player_angle
