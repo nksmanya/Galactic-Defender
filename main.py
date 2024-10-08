@@ -289,37 +289,66 @@ def level_1():
     return True
 
 def level_2():
-    global level_value, score_value, max_asteroid_speed
-    current_time = pygame.time.get_ticks()
-    time_elapsed = current_time - level2_start_time
+    global score_value, level_value, bullet_state, bulletY, max_asteroid_speed
 
-    if time_elapsed < level2_duration:
-        for i in range(num_of_asteroids):
-            asteroidY[i] += asteroidY_change[i]
+    # Update and display each enemy
+    for i in range(num_of_enemies):
+        enemyX[i] += enemyX_change[i]
+        if enemyX[i] <= 0 or enemyX[i] >= screen_width - 64:
+            enemyX_change[i] *= -1
+            enemyY[i] += enemyY_change[i]
 
-            if asteroidY[i] > screen_height:
-                asteroidX[i] = random.randint(0, screen_width - 64)
-                asteroidY[i] = random.randint(-500, -50)
-                asteroidY_change[i] = random.uniform(min_asteroid_speed, max_asteroid_speed)
-                near_miss_recorded[i] = False
+        # Check collision with player
+        if is_collision(enemyX[i], enemyY[i], playerX, playerY):
+            game_over_text()
+            return False
 
-            if is_asteroid_collision(asteroidX[i], asteroidY[i], playerX, playerY):
-                game_over_text()
-                return False
+        # Check collision with bullet
+        if is_collision(enemyX[i], enemyY[i], bulletX, bulletY):
+            explosionSound = mixer.Sound("explosion.mp3")
+            explosionSound.play()
+            bulletY = playerY
+            bullet_state = "ready"
+            score_value += 1
+            enemyX[i] = random.randint(0, screen_width - 64)
+            enemyY[i] = random.randint(50, 150)
 
-            if not near_miss_recorded[i] and is_near_miss(asteroidX[i], asteroidY[i], playerX, playerY):
-                score_value += 1
-                near_miss_recorded[i] = True
+        enemy(enemyX[i], enemyY[i], i)
 
-            asteroid(asteroidX[i], asteroidY[i], i)
+    # Update and display each asteroid
+    for i in range(num_of_asteroids):
+        asteroidY[i] += asteroidY_change[i]
 
-        if time_elapsed % 5000 == 0:
-            max_asteroid_speed += 0.5
-            for i in range(num_of_asteroids):
-                asteroidY_change[i] = random.uniform(min_asteroid_speed, max_asteroid_speed)
-    else:
+        # Respawn asteroid if it goes off-screen
+        if asteroidY[i] > screen_height:
+            asteroidX[i] = random.randint(0, screen_width - 64)
+            asteroidY[i] = random.randint(-500, -50)
+            asteroidY_change[i] = random.uniform(min_asteroid_speed, max_asteroid_speed)
+            near_miss_recorded[i] = False
+
+        # Check for collision with player
+        if is_asteroid_collision(asteroidX[i], asteroidY[i], playerX, playerY):
+            game_over_text()
+            return False
+
+        # Register near miss
+        if not near_miss_recorded[i] and is_near_miss(asteroidX[i], asteroidY[i], playerX, playerY):
+            score_value += 1
+            near_miss_recorded[i] = True
+
+        asteroid(asteroidX[i], asteroidY[i], i)
+
+    # Gradually increase speed
+    if score_value % 5 == 0 and score_value != 0:  # Increase speed every 5 points
+        max_asteroid_speed += 0.02
+        for j in range(num_of_enemies):
+            enemyX_change[j] += 0.01
+
+    # Transition to level 3
+    if score_value >= 20:
         level_value = 3
-        reset_asteroids()
+        reset_asteroids()  # Reset asteroids for the next level
+
     return True
 
 def level_3():
@@ -348,6 +377,7 @@ def level_3():
         planets_visited = [False] * num_of_planets
 
     return True
+
 
 def main_game_loop():
     global playerX, playerY, player_angle
