@@ -22,12 +22,21 @@ scroll_speed = 1
 icon = pygame.image.load('logo.png')
 playerImg = pygame.image.load('player2.png')
 bulletImg = pygame.image.load('bullet.png')
-powerup = pygame.image.load('powerup.png')
-powerup = pygame.transform.scale(powerup, (32, 32))
+
+# Images for levels 4 and 5
+asteroidImg = pygame.image.load('asteroid.png')
+# Scale asteroid image smaller for level 5
+small_asteroidImg = pygame.transform.scale(asteroidImg, (32, 32))  # Half the original size
+fuelImg = pygame.image.load('fuel.png')
+bossImg = pygame.image.load('boss.png')
+# Make boss bigger
+large_bossImg = pygame.transform.scale(bossImg, (192, 192))  # 1.5x the original size
+bossProjectileImg = pygame.image.load('boss_projectile.png')
 
 # Sound
 mixer.music.load("background.wav")
 mixer.music.play(-1)
+enemy_hit_sound = mixer.Sound("explosion.mp3")  # Add sound for level 4 enemy hits
 
 # Caption and Icon
 pygame.display.set_caption("Galactic Defender")
@@ -39,11 +48,7 @@ playerY = 480
 playerX_change = 0
 playerY_change = 0
 player_speed = 5
-launch_distance = 100
-is_launched = False
-launch_speed = 20
 player_angle = 0
-player_rotation_speed = 2
 
 # Enemy
 enemyImg = []
@@ -62,15 +67,6 @@ num_of_asteroids = 8
 min_asteroid_speed = 1
 max_asteroid_speed = 5
 
-# Planets
-planetImg = []
-planetX = []
-planetY = []
-planet_angles = []
-num_of_planets = 3
-planets_visited = [False] * num_of_planets
-planet_rotation_speed = 1
-
 # Bullet
 bulletX = 0
 bulletY = 480
@@ -82,14 +78,35 @@ score_value = 0
 level_value = 1
 font = pygame.font.Font('freesansbold.ttf', 32)
 over_font = pygame.font.Font('freesansbold.ttf', 64)
+win_font = pygame.font.Font('freesansbold.ttf', 48)
 
 # Level 2 timer
 level2_start_time = 0
-level2_duration = 20000  # 20 seconds in milliseconds
+level2_duration = 20000
 
 # Near miss
 near_miss_distance = 30
 near_miss_recorded = [False] * num_of_asteroids
+
+# Level 4 variables
+asteroids = []
+fuel_pods = []
+fuel_level = 100
+fuel_consumption_rate = 0.05
+level4_start_time = 0
+level4_duration = 60000
+level4_enemies = []
+
+# Level 5 variables
+boss_health = 100
+boss_x = 400
+boss_y = 100
+boss_move_speed = 3  # Horizontal movement speed for boss
+boss_projectiles = []
+boss_attack_timer = 0
+boss_attack_interval = 2000
+boss_hitbox_size = 96  # Increased hitbox for larger boss
+enemies = []
 
 def intro_page():
     start_time = pygame.time.get_ticks()
@@ -111,7 +128,6 @@ def intro_page():
 def initialize_game_objects():
     global enemyImg, enemyX, enemyY, enemyX_change, enemyY_change
     global asteroidImg, asteroidX, asteroidY, asteroidY_change
-    global planetImg, planetX, planetY, planet_angles, planets_visited
 
     for i in range(num_of_enemies):
         enemyImg.append(pygame.image.load('enemy.png'))
@@ -125,14 +141,6 @@ def initialize_game_objects():
         asteroidX.append(random.randint(0, screen_width - 64))
         asteroidY.append(random.randint(-500, -50))
         asteroidY_change.append(random.uniform(min_asteroid_speed, max_asteroid_speed))
-        
-for i in range(num_of_planets):
-        planetImg.append(pygame.image.load('planet.png'))
-        planetX.append(100 + i * 200)  # Spread planets horizontally
-        planetY.append(100 + i * 100)  # Move planets diagonally down
-        planet_angles.append(0)
-    
-planets_visited = [False] * num_of_planets
 
 def reset_asteroids():
     global near_miss_recorded
@@ -142,6 +150,105 @@ def reset_asteroids():
         asteroidY_change[i] = random.uniform(min_asteroid_speed, max_asteroid_speed)
         near_miss_recorded[i] = False
 
+def reset_level4():
+    global asteroids, fuel_pods, fuel_level, level4_start_time, level4_enemies
+    asteroids = [
+        {
+            'x': random.randint(0, screen_width - 64),
+            'y': random.randint(-500, -50),
+            'speed': random.uniform(1, 3)
+        } for _ in range(6)
+    ]
+    fuel_pods = [
+        {
+            'x': random.randint(0, screen_width - 32),
+            'y': random.randint(-500, -50),
+            'speed': random.uniform(1, 2)
+        } for _ in range(3)
+    ]
+    level4_enemies = [
+        {
+            'x': random.randint(0, screen_width - 64),
+            'y': random.randint(50, 150),
+            'speed': 3,
+            'direction': 1
+        } for _ in range(4)
+    ]
+    fuel_level = 100
+    level4_start_time = pygame.time.get_ticks()
+    
+    
+# Functions remain the same until game_won_text()
+
+def game_won_text():
+    # Create gradient background effect
+    for i in range(screen_height):
+        color = (
+            int(40 + (i / screen_height) * 50),  # Dark blue to lighter blue
+            int(50 + (i / screen_height) * 100),
+            int(150 + (i / screen_height) * 105)
+        )
+        pygame.draw.line(screen, color, (0, i), (screen_width, i))
+
+    # Draw stars
+    for _ in range(50):
+        x = random.randint(0, screen_width)
+        y = random.randint(0, screen_height)
+        size = random.randint(1, 3)
+        pygame.draw.circle(screen, (255, 255, 255), (x, y), size)
+
+    # Main victory text
+    won_text = over_font.render("VICTORY!", True, (255, 255, 255))
+    won_rect = won_text.get_rect(center=(screen_width // 2, screen_height // 2 - 50))
+    screen.blit(won_text, won_rect)
+
+    # Subtitle text
+    defender_text = win_font.render("You are a Galactic Defender", True, (255, 215, 0))
+    defender_rect = defender_text.get_rect(center=(screen_width // 2, screen_height // 2 + 50))
+    screen.blit(defender_text, defender_rect)
+
+    # Score display
+    score_text = font.render(f"Final Score: {score_value}", True, (255, 255, 255))
+    score_rect = score_text.get_rect(center=(screen_width // 2, screen_height // 2 + 120))
+    screen.blit(score_text, score_rect)
+
+
+def reset_level5():
+    global boss_health, boss_x, boss_y, boss_projectiles, boss_attack_timer, asteroids, fuel_pods, enemies
+    boss_health = 100
+    boss_x = 400
+    boss_y = 100
+    boss_projectiles = []
+    boss_attack_timer = 0
+    
+    # Reduced number of enemies for level 5
+    enemies = [
+        {
+            'x': random.randint(0, screen_width - 64),
+            'y': random.randint(50, 150),
+            'speed': random.uniform(2, 4),
+            'direction': 1
+        } for _ in range(3)  # Reduced from 5 to 3 enemies
+    ]
+    
+    # Fewer and smaller asteroids for level 5
+    asteroids = [
+        {
+            'x': random.randint(0, screen_width - 32),  # Adjusted for smaller size
+            'y': random.randint(-500, -50),
+            'speed': random.uniform(1, 2)
+        } for _ in range(3)  # Reduced from 5 to 3 asteroids
+    ]
+    
+    # Add fuel pods for level 5
+    fuel_pods = [
+        {
+            'x': random.randint(0, screen_width - 32),
+            'y': random.randint(-500, -50),
+            'speed': random.uniform(1, 1.5)
+        } for _ in range(2)
+    ]
+
 def show_score():
     score = font.render("Score : " + str(score_value), True, (255, 255, 255))
     screen.blit(score, (10, 10))
@@ -150,9 +257,61 @@ def show_level():
     level = font.render("Level : " + str(level_value), True, (255, 255, 255))
     screen.blit(level, (10, 50))
 
+def show_fuel():
+    fuel_text = font.render(f"Fuel: {int(fuel_level)}%", True, (255, 255, 255))
+    screen.blit(fuel_text, (10, 90))
+
+def show_boss_health():
+    bar_width = 150  # Increased bar width for larger boss
+    bar_height = 15  # Increased bar height
+    bar_x = boss_x + (192 - bar_width) // 2  # Centered above larger boss
+    bar_y = boss_y - 25
+    
+    pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width, bar_height))
+    health_width = int((boss_health / 100) * bar_width)
+    pygame.draw.rect(screen, (0, 255, 0), (bar_x, bar_y, health_width, bar_height))
+    
+    health_text = font.render(f"{boss_health}%", True, (255, 255, 255))
+    text_rect = health_text.get_rect()
+    text_rect.centerx = bar_x + bar_width // 2
+    text_rect.bottom = bar_y - 5
+    screen.blit(health_text, text_rect)
+
 def game_over_text():
     over_text = over_font.render("GAME OVER", True, (255, 255, 255))
     screen.blit(over_text, (200, 250))
+
+def game_won_text():
+    # Create gradient background effect
+    for i in range(screen_height):
+        color = (
+            int(40 + (i / screen_height) * 50),
+            int(50 + (i / screen_height) * 100),
+            int(150 + (i / screen_height) * 105)
+        )
+        pygame.draw.line(screen, color, (0, i), (screen_width, i))
+
+    # Draw animated stars
+    for _ in range(50):
+        x = random.randint(0, screen_width)
+        y = random.randint(0, screen_height)
+        size = random.randint(1, 3)
+        pygame.draw.circle(screen, (255, 255, 255), (x, y), size)
+
+    # Victory text
+    won_text = over_font.render("VICTORY!", True, (255, 255, 255))
+    won_rect = won_text.get_rect(center=(screen_width // 2, screen_height // 2 - 50))
+    screen.blit(won_text, won_rect)
+
+    # Subtitle
+    defender_text = win_font.render("You are now a Galactic Defender", True, (255, 215, 0))
+    defender_rect = defender_text.get_rect(center=(screen_width // 2, screen_height // 2 + 50))
+    screen.blit(defender_text, defender_rect)
+
+    # Final score
+    score_text = font.render(f"Final Score: {score_value}", True, (255, 255, 255))
+    score_rect = score_text.get_rect(center=(screen_width // 2, screen_height // 2 + 120))
+    screen.blit(score_text, score_rect)
 
 def draw_background():
     global scroll
@@ -166,26 +325,32 @@ def player(x, y, angle):
     rotated_player = pygame.transform.rotate(playerImg, angle)
     new_rect = rotated_player.get_rect(center=playerImg.get_rect(topleft=(x, y)).center)
     screen.blit(rotated_player, new_rect.topleft)
-    if is_launched or playerY_change < 0:
-        screen.blit(powerup, (x + 16, y + 64))
 
 def enemy(x, y, i):
     screen.blit(enemyImg[i], (x, y))
 
 def asteroid(x, y, i):
     screen.blit(asteroidImg[i], (x, y))
-    
-def planet(x, y, i, angle):
-    if not planets_visited[i]:
-        rotated_planet = pygame.transform.rotate(planetImg[i], angle)
-        new_rect = rotated_planet.get_rect(center=planetImg[i].get_rect(topleft=(x, y)).center)
-        screen.blit(rotated_planet, new_rect.topleft)
-
 
 def fire_bullet(x, y):
     global bullet_state
     bullet_state = "fire"
     screen.blit(bulletImg, (x + 16, y + 10))
+
+def draw_asteroid(x, y):
+    screen.blit(asteroidImg[0], (x, y))
+
+def draw_fuel_pod(x, y):
+    screen.blit(fuelImg, (x, y))
+
+def draw_boss(x, y):
+    screen.blit(large_bossImg, (x, y))
+
+def draw_boss_projectile(x, y):
+    screen.blit(bossProjectileImg, (x, y))
+
+def draw_enemy(x, y):
+    screen.blit(enemyImg[0], (x, y))
 
 def is_collision(x1, y1, x2, y2):
     distance = math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
@@ -200,63 +365,42 @@ def is_near_miss(x1, y1, x2, y2):
     return near_miss_distance < distance < near_miss_distance + 20
 
 def handle_events():
-    global playerX_change, playerY_change, bulletX, bulletY, bullet_state, is_launched, player_angle
+    global playerX_change, bulletX, bulletY, bullet_state, player_angle
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             return False
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_LEFT:
                 playerX_change = -player_speed
-                player_angle += player_rotation_speed
             if event.key == pygame.K_RIGHT:
                 playerX_change = player_speed
-                player_angle -= player_rotation_speed
-            if event.key == pygame.K_DOWN:
-                playerY_change = player_speed
             if event.key == pygame.K_SPACE and bullet_state == "ready":
                 bulletSound = mixer.Sound("laser.mp3")
                 bulletSound.play()
                 bulletX = playerX
                 bulletY = playerY
                 fire_bullet(bulletX, bulletY)
-            if event.key == pygame.K_l and level_value == 3 and not is_launched:
-                is_launched = True
-                launch_sound = mixer.Sound("launch.mp3")
-                launch_sound.play()
         if event.type == pygame.KEYUP:
             if event.key in (pygame.K_LEFT, pygame.K_RIGHT):
                 playerX_change = 0
-                player_angle = 0
-            if event.key == pygame.K_DOWN:
-                playerY_change = 0
     return True
 
 def update_player():
-    global playerX, playerY, is_launched
-    if is_launched and level_value == 3:
-        playerY -= launch_speed
-        if playerY <= screen_height - launch_distance:
-            is_launched = False
+    global playerX
+    playerX += playerX_change
+    if level_value < 4:
+        playerX = playerX % screen_width
     else:
-        playerX += playerX_change
-        playerY += playerY_change
-    
-    playerX = playerX % screen_width
-    playerY = max(0, min(playerY, screen_height - 64))
+        playerX = max(0, min(playerX, screen_width - 64))
 
 def update_bullet():
     global bulletX, bulletY, bullet_state
     if bullet_state == "fire":
         fire_bullet(bulletX, bulletY)
         bulletY -= bullet_speed
-        
         if bulletY <= 0:
             bulletY = playerY
-            bulletX = playerX
             bullet_state = "ready"
-    
-    bulletX = bulletX % screen_width
-    bulletY = bulletY % screen_height
 
 def level_1():
     global score_value, level_value, level2_start_time, bullet_state, bulletY
@@ -266,7 +410,6 @@ def level_1():
             enemyX_change[i] *= -1
             enemyY[i] += enemyY_change[i]
 
-        # Check for collision with player
         if is_collision(enemyX[i], enemyY[i], playerX, playerY):
             game_over_text()
             return False
@@ -325,19 +468,16 @@ def level_2():
 def level_3():
     global score_value, level_value, bullet_state, bulletY, max_asteroid_speed
 
-    # Update and display each enemy
     for i in range(num_of_enemies):
         enemyX[i] += enemyX_change[i]
         if enemyX[i] <= 0 or enemyX[i] >= screen_width - 64:
             enemyX_change[i] *= -1
             enemyY[i] += enemyY_change[i]
 
-        # Check collision with player
         if is_collision(enemyX[i], enemyY[i], playerX, playerY):
             game_over_text()
             return False
 
-        # Check collision with bullet
         if is_collision(enemyX[i], enemyY[i], bulletX, bulletY):
             explosionSound = mixer.Sound("explosion.mp3")
             explosionSound.play()
@@ -349,51 +489,236 @@ def level_3():
 
         enemy(enemyX[i], enemyY[i], i)
 
-    # Update and display each asteroid
+    # Update asteroids
     for i in range(num_of_asteroids):
         asteroidY[i] += asteroidY_change[i]
 
-        # Respawn asteroid if it goes off-screen
         if asteroidY[i] > screen_height:
             asteroidX[i] = random.randint(0, screen_width - 64)
             asteroidY[i] = random.randint(-500, -50)
             asteroidY_change[i] = random.uniform(min_asteroid_speed, max_asteroid_speed)
             near_miss_recorded[i] = False
 
-        # Check for collision with player
         if is_asteroid_collision(asteroidX[i], asteroidY[i], playerX, playerY):
             game_over_text()
             return False
 
-        # Register near miss
         if not near_miss_recorded[i] and is_near_miss(asteroidX[i], asteroidY[i], playerX, playerY):
             score_value += 1
             near_miss_recorded[i] = True
 
         asteroid(asteroidX[i], asteroidY[i], i)
 
-    # Gradually increase speed
-    if score_value % 5 == 0 and score_value != 0:  # Increase speed every 5 points
-        max_asteroid_speed += 0.02
-        for j in range(num_of_enemies):
-            enemyX_change[j] += 0.01
+    if score_value >= 30:
+        level_value = 4
+        reset_level4()
 
-    # Transition to level 3
-    if score_value >= 20:
-        level_value = 3
-        reset_asteroids()  # Reset asteroids for the next level
+    return True
+
+def level_4():
+    global score_value, level_value, fuel_level, bullet_state, bulletX, bulletY
+    
+    # Update and draw asteroids
+    for asteroid in asteroids[:]:
+        asteroid['y'] += asteroid['speed']
+        if asteroid['y'] > screen_height:
+            asteroid['y'] = random.randint(-500, -50)
+            asteroid['x'] = random.randint(0, screen_width - 64)
+            asteroid['speed'] = random.uniform(1.5, 3)
+        draw_asteroid(asteroid['x'], asteroid['y'])
+
+        if is_collision(playerX, playerY, asteroid['x'], asteroid['y']):
+            game_over_text()
+            return False
+
+    # Update and draw enemies
+    for enemy in level4_enemies[:]:
+        enemy['x'] += enemy['speed'] * enemy['direction']
+        if enemy['x'] <= 0 or enemy['x'] >= screen_width - 64:
+            enemy['direction'] *= -1
+            enemy['y'] += 20
+        draw_enemy(enemy['x'], enemy['y'])
+
+        if is_collision(playerX, playerY, enemy['x'], enemy['y']):
+            game_over_text()
+            return False
+
+        # Check bullet collision with enemies
+        if bullet_state == "fire":
+            if is_collision(enemy['x'], enemy['y'], bulletX, bulletY):
+                enemy_hit_sound.play()  # Play sound effect when hitting enemy
+                level4_enemies.remove(enemy)
+                bullet_state = "ready"
+                bulletY = playerY
+                score_value += 2
+                # Respawn enemy at top
+                level4_enemies.append({
+                    'x': random.randint(0, screen_width - 64),
+                    'y': random.randint(-100, 0),
+                    'speed': 3,
+                    'direction': 1
+                })
+
+    # Update and draw fuel pods
+    for fuel_pod in fuel_pods[:]:
+        fuel_pod['y'] += fuel_pod['speed']
+        if fuel_pod['y'] > screen_height:
+            fuel_pod['y'] = random.randint(-500, -50)
+            fuel_pod['x'] = random.randint(0, screen_width - 32)
+            fuel_pod['speed'] = random.uniform(1, 1.5)
+        draw_fuel_pod(fuel_pod['x'], fuel_pod['y'])
+
+        if is_collision(playerX, playerY, fuel_pod['x'], fuel_pod['y']):
+            fuel_level = min(100, fuel_level + 30)
+            fuel_pod['y'] = random.randint(-500, -50)
+            fuel_pod['x'] = random.randint(0, screen_width - 32)
+
+    fuel_level -= fuel_consumption_rate
+    if fuel_level <= 0:
+        game_over_text()
+        return False
+
+    current_time = pygame.time.get_ticks()
+    if current_time - level4_start_time >= level4_duration or score_value >= 50:
+        level_value = 5
+        reset_level5()
+
+    show_fuel()
+    return True 
+
+def level_5():
+    global score_value, level_value, boss_health, boss_x, boss_y, boss_attack_timer
+    global boss_projectiles, bullet_state, bulletX, bulletY, fuel_level
+
+    # Enhanced boss movement (smoother horizontal movement)
+    boss_x += boss_move_speed * math.sin(pygame.time.get_ticks() / 1000)
+    boss_x = max(0, min(boss_x, screen_width - 192))  # Adjusted for larger boss size
+
+    # Random enemy spawning
+    if random.random() < 0.02 and len(enemies) < 3:  # 2% chance each frame to spawn new enemy
+        enemies.append({
+            'x': random.randint(0, screen_width - 64),
+            'y': random.randint(-100, 0),
+            'speed': random.uniform(2, 4),
+            'direction': 1
+        })
+
+    # Boss attacks
+    current_time = pygame.time.get_ticks()
+    if current_time - boss_attack_timer >= boss_attack_interval:
+        boss_attack_timer = current_time
+        for offset in [-30, 0, 30]:  # Wider spread for larger boss
+            boss_projectiles.append({
+                'x': boss_x + 96 + offset,  # Adjusted for larger boss
+                'y': boss_y + 96,
+                'speed': 5,
+                'angle': math.radians(offset)
+            })
+
+    # Update and draw boss projectiles
+    for projectile in boss_projectiles[:]:
+        projectile['y'] += projectile['speed']
+        projectile['x'] += math.sin(projectile['angle']) * 2
+        draw_boss_projectile(projectile['x'], projectile['y'])
+
+        if is_collision(playerX, playerY, projectile['x'], projectile['y']):
+            game_over_text()
+            return False
+
+    # Update and draw enemies with random movement
+    for enemy in enemies[:]:
+        enemy['x'] += enemy['speed'] * enemy['direction']
+        if enemy['x'] <= 0 or enemy['x'] >= screen_width - 64:
+            enemy['direction'] *= -1
+            enemy['y'] += random.randint(10, 30)  # Random vertical movement
+        draw_enemy(enemy['x'], enemy['y'])
+
+        if is_collision(playerX, playerY, enemy['x'], enemy['y']):
+            game_over_text()
+            return False
+
+    # Update and draw smaller asteroids
+    for asteroid in asteroids[:]:
+        asteroid['y'] += asteroid['speed']
+        if asteroid['y'] > screen_height:
+            asteroid['y'] = random.randint(-500, -50)
+            asteroid['x'] = random.randint(0, screen_width - 32)  # Adjusted for smaller size
+        # Use small_asteroidImg instead of regular asteroidImg
+        screen.blit(small_asteroidImg, (asteroid['x'], asteroid['y']))
+
+        if is_collision(playerX, playerY, asteroid['x'], asteroid['y']):
+            game_over_text()
+            return False
+
+        # Update and draw fuel pods
+    for fuel_pod in fuel_pods[:]:
+        fuel_pod['y'] += fuel_pod['speed']
+        if fuel_pod['y'] > screen_height:
+            fuel_pod['y'] = random.randint(-500, -50)
+            fuel_pod['x'] = random.randint(0, screen_width - 32)
+        draw_fuel_pod(fuel_pod['x'], fuel_pod['y'])
+
+        if is_collision(playerX, playerY, fuel_pod['x'], fuel_pod['y']):
+            fuel_level = min(100, fuel_level + 30)
+            fuel_pod['y'] = random.randint(-500, -50)
+            fuel_pod['x'] = random.randint(0, screen_width - 32)
+
+    # Remove off-screen projectiles
+    boss_projectiles = [p for p in boss_projectiles if p['y'] < screen_height]
+
+    # Check for bullet collision with boss (enlarged hitbox)
+    if bullet_state == "fire":
+        boss_center_x = boss_x + 64
+        boss_center_y = boss_y + 64
+        distance = math.sqrt((boss_center_x - bulletX)**2 + (boss_center_y - bulletY)**2)
+        if distance < boss_hitbox_size:  # Larger hitbox for easier targeting
+            boss_health -= 10
+            bullet_state = "ready"
+            bulletY = playerY
+            score_value += 5
+
+    # Check bullet collision with enemies
+    if bullet_state == "fire":
+        for enemy in enemies[:]:
+            if is_collision(enemy['x'], enemy['y'], bulletX, bulletY):
+                enemies.remove(enemy)
+                bullet_state = "ready"
+                bulletY = playerY
+                score_value += 2
+
+    # Decrease fuel level
+    fuel_level -= 0.05
+    if fuel_level <= 0:
+        game_over_text()
+        return False
+
+    if boss_health <= 0:
+        game_won_text()
+        return False
+
+    # Draw larger boss
+    screen.blit(large_bossImg, (boss_x, boss_y))
+    show_boss_health()
+    show_fuel()
+
+    if boss_health <= 0:
+        game_won_text()
+        return False
 
     return True
 
 
 def main_game_loop():
-    global playerX, playerY, player_angle
+    global playerX, bullet_state, bulletX, bulletY
     running = True
     clock = pygame.time.Clock()
+    
     while running:
         draw_background()
-
         running = handle_events()
+        if not running:
+            break
+            
         update_player()
         update_bullet()
 
@@ -403,9 +728,10 @@ def main_game_loop():
             running = level_2()
         elif level_value == 3:
             running = level_3()
-        else:
-            game_over_text()
-            running = False
+        elif level_value == 4:
+            running = level_4()
+        elif level_value == 5:
+            running = level_5()
 
         player(playerX, playerY, player_angle)
         show_score()
@@ -413,7 +739,10 @@ def main_game_loop():
         pygame.display.update()
         clock.tick(60)
 
-intro_page()
-initialize_game_objects()
-main_game_loop()
-pygame.quit()
+    pygame.time.wait(2000)
+
+if __name__ == "__main__":
+    intro_page()
+    initialize_game_objects()
+    main_game_loop()
+    pygame.quit()
