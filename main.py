@@ -13,30 +13,30 @@ screen_height = 600
 screen = pygame.display.set_mode((screen_width, screen_height))
 
 # Load images
-intro_image = pygame.image.load('intro_image.png')
-background = pygame.image.load('bgimage3.png')
+intro_image = pygame.image.load('images/intro_image.png')
+background = pygame.image.load('images/bgimage3.png')
 background_height = background.get_height()
 scroll = 0
 scroll_speed = 1
 
-icon = pygame.image.load('logo.png')
-playerImg = pygame.image.load('player2.png')
-bulletImg = pygame.image.load('bullet.png')
+icon = pygame.image.load('images/logo.png')
+playerImg = pygame.image.load('images/player2.png')
+bulletImg = pygame.image.load('images/bullet.png')
 
 # Images for levels 4 and 5
-asteroidImg = pygame.image.load('asteroid.png')
+asteroidImg = pygame.image.load('images/asteroid.png')
 # Scale asteroid image smaller for level 5
 small_asteroidImg = pygame.transform.scale(asteroidImg, (32, 32))  # Half the original size
-fuelImg = pygame.image.load('fuel.png')
-bossImg = pygame.image.load('boss.png')
+fuelImg = pygame.image.load('images/fuel.png')
+bossImg = pygame.image.load('images/boss.png')
 # Make boss bigger
 large_bossImg = pygame.transform.scale(bossImg, (192, 192))  # 1.5x the original size
-bossProjectileImg = pygame.image.load('boss_projectile.png')
+bossProjectileImg = pygame.image.load('images/boss_projectile.png')
 
 # Sound
-mixer.music.load("background.wav")
+mixer.music.load("sound/background.wav")
 mixer.music.play(-1)
-enemy_hit_sound = mixer.Sound("explosion.mp3")  # Add sound for level 4 enemy hits
+enemy_hit_sound = mixer.Sound("sound/explosion.mp3")  # Add sound for level 4 enemy hits
 
 # Caption and Icon
 pygame.display.set_caption("Galactic Defender")
@@ -130,14 +130,14 @@ def initialize_game_objects():
     global asteroidImg, asteroidX, asteroidY, asteroidY_change
 
     for i in range(num_of_enemies):
-        enemyImg.append(pygame.image.load('enemy.png'))
+        enemyImg.append(pygame.image.load('images/enemy.png'))
         enemyX.append(random.randint(0, screen_width - 64))
         enemyY.append(random.randint(50, 150))
         enemyX_change.append(6)
         enemyY_change.append(10)
 
     for i in range(num_of_asteroids):
-        asteroidImg.append(pygame.image.load('asteroid.png'))
+        asteroidImg.append(pygame.image.load('images/asteroid.png'))
         asteroidX.append(random.randint(0, screen_width - 64))
         asteroidY.append(random.randint(-500, -50))
         asteroidY_change.append(random.uniform(min_asteroid_speed, max_asteroid_speed))
@@ -375,7 +375,7 @@ def handle_events():
             if event.key == pygame.K_RIGHT:
                 playerX_change = player_speed
             if event.key == pygame.K_SPACE and bullet_state == "ready":
-                bulletSound = mixer.Sound("laser.mp3")
+                bulletSound = mixer.Sound("sound/laser.mp3")
                 bulletSound.play()
                 bulletX = playerX
                 bulletY = playerY
@@ -415,7 +415,7 @@ def level_1():
             return False
 
         if is_collision(enemyX[i], enemyY[i], bulletX, bulletY):
-            explosionSound = mixer.Sound("explosion.mp3")
+            explosionSound = mixer.Sound("sound/explosion.mp3")
             explosionSound.play()
             bulletY = playerY
             bullet_state = "ready"
@@ -479,7 +479,7 @@ def level_3():
             return False
 
         if is_collision(enemyX[i], enemyY[i], bulletX, bulletY):
-            explosionSound = mixer.Sound("explosion.mp3")
+            explosionSound = mixer.Sound("sound/explosion.mp3")
             explosionSound.play()
             bulletY = playerY
             bullet_state = "ready"
