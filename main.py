@@ -25,13 +25,18 @@ bulletImg = pygame.image.load('bullet.png')
 
 # Images for levels 4 and 5
 asteroidImg = pygame.image.load('asteroid.png')
+# Scale asteroid image smaller for level 5
+small_asteroidImg = pygame.transform.scale(asteroidImg, (32, 32))  # Half the original size
 fuelImg = pygame.image.load('fuel.png')
 bossImg = pygame.image.load('boss.png')
+# Make boss bigger
+large_bossImg = pygame.transform.scale(bossImg, (192, 192))  # 1.5x the original size
 bossProjectileImg = pygame.image.load('boss_projectile.png')
 
 # Sound
 mixer.music.load("background.wav")
 mixer.music.play(-1)
+enemy_hit_sound = mixer.Sound("explosion.mp3")  # Add sound for level 4 enemy hits
 
 # Caption and Icon
 pygame.display.set_caption("Galactic Defender")
@@ -39,7 +44,7 @@ pygame.display.set_icon(icon)
 
 # Player
 playerX = 370
-playerY = 480  # Fixed Y position
+playerY = 480
 playerX_change = 0
 playerY_change = 0
 player_speed = 5
@@ -73,10 +78,11 @@ score_value = 0
 level_value = 1
 font = pygame.font.Font('freesansbold.ttf', 32)
 over_font = pygame.font.Font('freesansbold.ttf', 64)
+win_font = pygame.font.Font('freesansbold.ttf', 48)
 
 # Level 2 timer
 level2_start_time = 0
-level2_duration = 20000  # 20 seconds
+level2_duration = 20000
 
 # Near miss
 near_miss_distance = 30
@@ -89,16 +95,17 @@ fuel_level = 100
 fuel_consumption_rate = 0.05
 level4_start_time = 0
 level4_duration = 60000
-level4_enemies = []  # New variable for level 4 enemies
+level4_enemies = []
 
 # Level 5 variables
 boss_health = 100
 boss_x = 400
 boss_y = 100
+boss_move_speed = 3  # Horizontal movement speed for boss
 boss_projectiles = []
 boss_attack_timer = 0
 boss_attack_interval = 2000
-boss_hitbox_size = 80  # Larger hitbox for easier targeting
+boss_hitbox_size = 96  # Increased hitbox for larger boss
 enemies = []
 
 def intro_page():
@@ -150,7 +157,7 @@ def reset_level4():
             'x': random.randint(0, screen_width - 64),
             'y': random.randint(-500, -50),
             'speed': random.uniform(1, 3)
-        } for _ in range(6)  # Reduced number of asteroids to accommodate enemies
+        } for _ in range(6)
     ]
     fuel_pods = [
         {
@@ -159,7 +166,6 @@ def reset_level4():
             'speed': random.uniform(1, 2)
         } for _ in range(3)
     ]
-    # Initialize level 4 enemies
     level4_enemies = [
         {
             'x': random.randint(0, screen_width - 64),
@@ -170,6 +176,42 @@ def reset_level4():
     ]
     fuel_level = 100
     level4_start_time = pygame.time.get_ticks()
+    
+    
+# Functions remain the same until game_won_text()
+
+def game_won_text():
+    # Create gradient background effect
+    for i in range(screen_height):
+        color = (
+            int(40 + (i / screen_height) * 50),  # Dark blue to lighter blue
+            int(50 + (i / screen_height) * 100),
+            int(150 + (i / screen_height) * 105)
+        )
+        pygame.draw.line(screen, color, (0, i), (screen_width, i))
+
+    # Draw stars
+    for _ in range(50):
+        x = random.randint(0, screen_width)
+        y = random.randint(0, screen_height)
+        size = random.randint(1, 3)
+        pygame.draw.circle(screen, (255, 255, 255), (x, y), size)
+
+    # Main victory text
+    won_text = over_font.render("VICTORY!", True, (255, 255, 255))
+    won_rect = won_text.get_rect(center=(screen_width // 2, screen_height // 2 - 50))
+    screen.blit(won_text, won_rect)
+
+    # Subtitle text
+    defender_text = win_font.render("You are a Galactic Defender", True, (255, 215, 0))
+    defender_rect = defender_text.get_rect(center=(screen_width // 2, screen_height // 2 + 50))
+    screen.blit(defender_text, defender_rect)
+
+    # Score display
+    score_text = font.render(f"Final Score: {score_value}", True, (255, 255, 255))
+    score_rect = score_text.get_rect(center=(screen_width // 2, screen_height // 2 + 120))
+    screen.blit(score_text, score_rect)
+
 
 def reset_level5():
     global boss_health, boss_x, boss_y, boss_projectiles, boss_attack_timer, asteroids, fuel_pods, enemies
@@ -179,23 +221,23 @@ def reset_level5():
     boss_projectiles = []
     boss_attack_timer = 0
     
-    # Initialize enemies for level 5
+    # Reduced number of enemies for level 5
     enemies = [
         {
             'x': random.randint(0, screen_width - 64),
             'y': random.randint(50, 150),
             'speed': random.uniform(2, 4),
             'direction': 1
-        } for _ in range(5)
+        } for _ in range(3)  # Reduced from 5 to 3 enemies
     ]
     
-    # Add fewer asteroids for level 5
+    # Fewer and smaller asteroids for level 5
     asteroids = [
         {
-            'x': random.randint(0, screen_width - 64),
+            'x': random.randint(0, screen_width - 32),  # Adjusted for smaller size
             'y': random.randint(-500, -50),
-            'speed': random.uniform(1, 2.5)
-        } for _ in range(5)
+            'speed': random.uniform(1, 2)
+        } for _ in range(3)  # Reduced from 5 to 3 asteroids
     ]
     
     # Add fuel pods for level 5
@@ -220,19 +262,15 @@ def show_fuel():
     screen.blit(fuel_text, (10, 90))
 
 def show_boss_health():
-    # Draw health bar above the boss
-    bar_width = 100
-    bar_height = 10
-    bar_x = boss_x + (128 - bar_width) // 2  # Center above boss
-    bar_y = boss_y - 20  # Position above boss
+    bar_width = 150  # Increased bar width for larger boss
+    bar_height = 15  # Increased bar height
+    bar_x = boss_x + (192 - bar_width) // 2  # Centered above larger boss
+    bar_y = boss_y - 25
     
-    # Background bar (red)
     pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width, bar_height))
-    # Health bar (green)
     health_width = int((boss_health / 100) * bar_width)
     pygame.draw.rect(screen, (0, 255, 0), (bar_x, bar_y, health_width, bar_height))
     
-    # Percentage text
     health_text = font.render(f"{boss_health}%", True, (255, 255, 255))
     text_rect = health_text.get_rect()
     text_rect.centerx = bar_x + bar_width // 2
@@ -244,8 +282,36 @@ def game_over_text():
     screen.blit(over_text, (200, 250))
 
 def game_won_text():
-    won_text = over_font.render("YOU WON!", True, (255, 255, 255))
-    screen.blit(won_text, (200, 250))
+    # Create gradient background effect
+    for i in range(screen_height):
+        color = (
+            int(40 + (i / screen_height) * 50),
+            int(50 + (i / screen_height) * 100),
+            int(150 + (i / screen_height) * 105)
+        )
+        pygame.draw.line(screen, color, (0, i), (screen_width, i))
+
+    # Draw animated stars
+    for _ in range(50):
+        x = random.randint(0, screen_width)
+        y = random.randint(0, screen_height)
+        size = random.randint(1, 3)
+        pygame.draw.circle(screen, (255, 255, 255), (x, y), size)
+
+    # Victory text
+    won_text = over_font.render("VICTORY!", True, (255, 255, 255))
+    won_rect = won_text.get_rect(center=(screen_width // 2, screen_height // 2 - 50))
+    screen.blit(won_text, won_rect)
+
+    # Subtitle
+    defender_text = win_font.render("You are now a Galactic Defender", True, (255, 215, 0))
+    defender_rect = defender_text.get_rect(center=(screen_width // 2, screen_height // 2 + 50))
+    screen.blit(defender_text, defender_rect)
+
+    # Final score
+    score_text = font.render(f"Final Score: {score_value}", True, (255, 255, 255))
+    score_rect = score_text.get_rect(center=(screen_width // 2, screen_height // 2 + 120))
+    screen.blit(score_text, score_rect)
 
 def draw_background():
     global scroll
@@ -278,7 +344,7 @@ def draw_fuel_pod(x, y):
     screen.blit(fuelImg, (x, y))
 
 def draw_boss(x, y):
-    screen.blit(bossImg, (x, y))
+    screen.blit(large_bossImg, (x, y))
 
 def draw_boss_projectile(x, y):
     screen.blit(bossProjectileImg, (x, y))
@@ -322,22 +388,18 @@ def handle_events():
 def update_player():
     global playerX
     playerX += playerX_change
-    
-    # Keep player within screen bounds
     if level_value < 4:
         playerX = playerX % screen_width
     else:
         playerX = max(0, min(playerX, screen_width - 64))
-        
+
 def update_bullet():
     global bulletX, bulletY, bullet_state
     if bullet_state == "fire":
         fire_bullet(bulletX, bulletY)
         bulletY -= bullet_speed
-        
         if bulletY <= 0:
             bulletY = playerY
-            bulletX = playerX
             bullet_state = "ready"
 
 def level_1():
@@ -484,6 +546,7 @@ def level_4():
         # Check bullet collision with enemies
         if bullet_state == "fire":
             if is_collision(enemy['x'], enemy['y'], bulletX, bulletY):
+                enemy_hit_sound.play()  # Play sound effect when hitting enemy
                 level4_enemies.remove(enemy)
                 bullet_state = "ready"
                 bulletY = playerY
@@ -521,63 +584,73 @@ def level_4():
         reset_level5()
 
     show_fuel()
-    return True
+    return True 
 
 def level_5():
     global score_value, level_value, boss_health, boss_x, boss_y, boss_attack_timer
     global boss_projectiles, bullet_state, bulletX, bulletY, fuel_level
 
-    # Boss movement pattern (slower movement)
-    boss_x += math.sin(pygame.time.get_ticks() / 1000) * 2
-    boss_x = max(0, min(boss_x, screen_width - 128))
+    # Enhanced boss movement (smoother horizontal movement)
+    boss_x += boss_move_speed * math.sin(pygame.time.get_ticks() / 1000)
+    boss_x = max(0, min(boss_x, screen_width - 192))  # Adjusted for larger boss size
 
-    # Boss attacks (reduced frequency)
+    # Random enemy spawning
+    if random.random() < 0.02 and len(enemies) < 3:  # 2% chance each frame to spawn new enemy
+        enemies.append({
+            'x': random.randint(0, screen_width - 64),
+            'y': random.randint(-100, 0),
+            'speed': random.uniform(2, 4),
+            'direction': 1
+        })
+
+    # Boss attacks
     current_time = pygame.time.get_ticks()
     if current_time - boss_attack_timer >= boss_attack_interval:
         boss_attack_timer = current_time
-        for offset in [-20, 0, 20]:  # Reduced spread of projectiles
+        for offset in [-30, 0, 30]:  # Wider spread for larger boss
             boss_projectiles.append({
-                'x': boss_x + 64 + offset,
-                'y': boss_y + 64,
-                'speed': 5,  # Slightly slower projectiles
+                'x': boss_x + 96 + offset,  # Adjusted for larger boss
+                'y': boss_y + 96,
+                'speed': 5,
                 'angle': math.radians(offset)
             })
 
     # Update and draw boss projectiles
     for projectile in boss_projectiles[:]:
         projectile['y'] += projectile['speed']
-        projectile['x'] += math.sin(projectile['angle']) * 1.5  # Reduced sideways movement
+        projectile['x'] += math.sin(projectile['angle']) * 2
         draw_boss_projectile(projectile['x'], projectile['y'])
 
         if is_collision(playerX, playerY, projectile['x'], projectile['y']):
             game_over_text()
             return False
 
-    # Update and draw enemies
+    # Update and draw enemies with random movement
     for enemy in enemies[:]:
         enemy['x'] += enemy['speed'] * enemy['direction']
         if enemy['x'] <= 0 or enemy['x'] >= screen_width - 64:
             enemy['direction'] *= -1
-            enemy['y'] += 20
+            enemy['y'] += random.randint(10, 30)  # Random vertical movement
         draw_enemy(enemy['x'], enemy['y'])
 
         if is_collision(playerX, playerY, enemy['x'], enemy['y']):
             game_over_text()
             return False
 
-    # Update and draw asteroids
+    # Update and draw smaller asteroids
     for asteroid in asteroids[:]:
         asteroid['y'] += asteroid['speed']
         if asteroid['y'] > screen_height:
             asteroid['y'] = random.randint(-500, -50)
-            asteroid['x'] = random.randint(0, screen_width - 64)
-        draw_asteroid(asteroid['x'], asteroid['y'])
+            asteroid['x'] = random.randint(0, screen_width - 32)  # Adjusted for smaller size
+        # Use small_asteroidImg instead of regular asteroidImg
+        screen.blit(small_asteroidImg, (asteroid['x'], asteroid['y']))
 
         if is_collision(playerX, playerY, asteroid['x'], asteroid['y']):
             game_over_text()
             return False
 
-    # Update and draw fuel pods
+        # Update and draw fuel pods
     for fuel_pod in fuel_pods[:]:
         fuel_pod['y'] += fuel_pod['speed']
         if fuel_pod['y'] > screen_height:
@@ -623,11 +696,17 @@ def level_5():
         game_won_text()
         return False
 
-    # Draw boss and show health
-    draw_boss(boss_x, boss_y)
+    # Draw larger boss
+    screen.blit(large_bossImg, (boss_x, boss_y))
     show_boss_health()
     show_fuel()
+
+    if boss_health <= 0:
+        game_won_text()
+        return False
+
     return True
+
 
 def main_game_loop():
     global playerX, bullet_state, bulletX, bulletY
