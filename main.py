@@ -44,7 +44,7 @@ pygame.display.set_icon(icon)
 
 # Player
 playerX = 370
-playerY = 480
+playerY = 520
 playerX_change = 0
 playerY_change = 0
 player_speed = 5
