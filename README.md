@@ -18,6 +18,7 @@ Developed with **Pygame** — the Python game development library known for its 
 ## 🎮 Game Overview
 
 The game starts with a brief intro sequence, setting the space-themed atmosphere before players dive into the action.
+We can use left and right arrow keys to move our spaceship and for shooting the enemies we should press the space bar. 
 
 ### Intro Sequence
 ![Intro Sequence Screenshot](https://github.com/user-attachments/assets/7de958ce-f872-4305-870f-20dd3836b690)
